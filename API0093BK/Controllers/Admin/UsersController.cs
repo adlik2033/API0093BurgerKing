@@ -97,6 +97,40 @@ namespace API0093BK.Controllers.Admin
         }
 
         /// <summary>
+        /// Получение пользователя по табельному номеру
+        /// </summary>
+        /// <param name="employeeNumber">Табельный номер</param>
+        /// <returns>Данные пользователя</returns>
+        [HttpGet("by-employee/{employeeNumber}")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetUserByEmployeeNumber(string employeeNumber)
+        {
+            try
+            {
+                var user = await _userManagementService.GetUserByEmployeeNumberAsync(employeeNumber);
+                return Ok(new ApiResponse<UserDto>(user, "Пользователь получен успешно"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении пользователя {EmployeeNumber}", employeeNumber);
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Произошла ошибка при получении пользователя"
+                });
+            }
+        }
+
+        /// <summary>
         /// Создание нового пользователя
         /// </summary>
         /// <param name="userCreateDto">Данные для создания пользователя</param>
@@ -154,6 +188,9 @@ namespace API0093BK.Controllers.Admin
         /// <summary>
         /// Обновление данных пользователя
         /// </summary>
+        /// <param name="id">ID пользователя</param>
+        /// <param name="userUpdateDto">Данные для обновления</param>
+        /// <returns>Обновленный пользователь</returns>
         [HttpPut("{id}")]
         [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -196,6 +233,8 @@ namespace API0093BK.Controllers.Admin
         /// <summary>
         /// Удаление (деактивация) пользователя
         /// </summary>
+        /// <param name="id">ID пользователя</param>
+        /// <returns>NoContent</returns>
         [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -238,6 +277,9 @@ namespace API0093BK.Controllers.Admin
         /// <summary>
         /// Сброс пароля пользователя
         /// </summary>
+        /// <param name="id">ID пользователя</param>
+        /// <param name="newPassword">Новый пароль</param>
+        /// <returns>Результат операции</returns>
         [HttpPost("{id}/reset-password")]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -245,6 +287,15 @@ namespace API0093BK.Controllers.Admin
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Пароль должен быть не менее 6 символов"
+                    });
+                }
+
                 var adminId = User.GetUserId();
                 await _userManagementService.ResetPasswordAsync(id, newPassword, adminId);
                 return Ok(new ApiResponse<object>(null, "Пароль успешно сброшен"));
@@ -271,6 +322,8 @@ namespace API0093BK.Controllers.Admin
         /// <summary>
         /// Отправка пользователя на обучение
         /// </summary>
+        /// <param name="id">ID пользователя</param>
+        /// <returns>Результат операции</returns>
         [HttpPost("{id}/send-to-training")]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -305,6 +358,72 @@ namespace API0093BK.Controllers.Admin
                 {
                     Success = false,
                     Message = "Произошла ошибка при отправке на обучение"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Получение пользователей по роли
+        /// </summary>
+        /// <param name="role">Роль (Administrator, Manager, Employee)</param>
+        /// <returns>Список пользователей с указанной ролью</returns>
+        [HttpGet("by-role/{role}")]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<UserDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetUsersByRole(string role)
+        {
+            try
+            {
+                var users = await _userManagementService.GetUsersByRoleAsync(role);
+
+                return Ok(new ApiResponse<IEnumerable<UserDto>>(users,
+                    users.Any() ? "Пользователи получены" : "Пользователи не найдены"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении пользователей по роли {Role}", role);
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Произошла ошибка при получении пользователей"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Активация/деактивация пользователя
+        /// </summary>
+        /// <param name="id">ID пользователя</param>
+        /// <param name="isActive">Статус активности</param>
+        /// <returns>Обновленный пользователь</returns>
+        [HttpPatch("{id}/status")]
+        [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SetUserStatus(int id, [FromBody] bool isActive)
+        {
+            try
+            {
+                var adminId = User.GetUserId();
+                var updateDto = new UserUpdateDto { IsActive = isActive };
+                var user = await _userManagementService.UpdateUserAsync(id, updateDto, adminId);
+
+                return Ok(new ApiResponse<UserDto>(user,
+                    isActive ? "Пользователь активирован" : "Пользователь деактивирован"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при изменении статуса пользователя {UserId}", id);
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Произошла ошибка при изменении статуса"
                 });
             }
         }

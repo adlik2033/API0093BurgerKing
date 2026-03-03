@@ -6,21 +6,17 @@ using API0093BK.Services.Interfaces;
 
 namespace API0093BK.Services
 {
-    /// <summary>
-    /// Реализация сервиса управления пользователями
-    /// </summary>
     public class UserManagementService : IUserManagementService
     {
         private readonly IUserRepository _userRepository;
+        private readonly ILogger<UserManagementService> _logger;
 
-        public UserManagementService(IUserRepository userRepository)
+        public UserManagementService(IUserRepository userRepository, ILogger<UserManagementService> logger)
         {
             _userRepository = userRepository;
+            _logger = logger;
         }
 
-        /// <summary>
-        /// Получение всех активных пользователей
-        /// </summary>
         public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
         {
             var users = await _userRepository.GetAllAsync();
@@ -34,9 +30,6 @@ namespace API0093BK.Services
             return result;
         }
 
-        /// <summary>
-        /// Получение пользователя по ID
-        /// </summary>
         public async Task<UserDto> GetUserByIdAsync(int id)
         {
             var user = await _userRepository.GetByIdAsync(id);
@@ -46,72 +39,58 @@ namespace API0093BK.Services
             return await MapToDto(user);
         }
 
-        /// <summary>
-        /// Создание нового пользователя
-        /// </summary>
-        /// <param name="userCreateDto">Данные для создания</param>
-        /// <param name="adminId">ID администратора, создающего пользователя</param>
-        /// <returns>Созданный пользователь</returns>
+        public async Task<UserDto> GetUserByEmployeeNumberAsync(string employeeNumber)
+        {
+            var user = await _userRepository.GetUserByEmployeeNumberAsync(employeeNumber);
+            if (user == null)
+                throw new KeyNotFoundException($"Пользователь с табельным номером {employeeNumber} не найден");
+
+            return await MapToDto(user);
+        }
+
         public async Task<UserDto> CreateUserAsync(UserCreateDto userCreateDto, int adminId)
         {
-            // Проверка уникальности имени пользователя
-            if (await _userRepository.ExistsAsync(u => u.Username == userCreateDto.Username))
-                throw new InvalidOperationException($"Имя пользователя '{userCreateDto.Username}' уже занято");
+            // Проверка уникальности табельного номера
+            if (await _userRepository.ExistsAsync(u => u.EmployeeNumber == userCreateDto.EmployeeNumber))
+                throw new InvalidOperationException($"Табельный номер '{userCreateDto.EmployeeNumber}' уже используется");
 
             // Проверка уникальности email
             if (await _userRepository.ExistsAsync(u => u.Email == userCreateDto.Email))
                 throw new InvalidOperationException($"Email '{userCreateDto.Email}' уже используется");
 
-            // Проверка уникальности ID из портала
-            if (userCreateDto.PortalEmployeeId.HasValue)
-            {
-                var existingByPortal = await _userRepository.GetUserByPortalIdAsync(userCreateDto.PortalEmployeeId.Value);
-                if (existingByPortal != null)
-                    throw new InvalidOperationException($"ID сотрудника из портала {userCreateDto.PortalEmployeeId} уже назначен");
-            }
-
             var user = new User
             {
-                Username = userCreateDto.Username,
+                EmployeeNumber = userCreateDto.EmployeeNumber,
                 PasswordHash = PasswordHelper.HashPassword(userCreateDto.Password),
                 Email = userCreateDto.Email,
-                FirstName = userCreateDto.FirstName,
-                LastName = userCreateDto.LastName,
-                Role = Enum.Parse<UserRole>(userCreateDto.Role),
-                PortalEmployeeId = userCreateDto.PortalEmployeeId,
+                FullName = userCreateDto.FullName,
+                Role = userCreateDto.Role,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = adminId,
                 IsActive = true
             };
 
             var createdUser = await _userRepository.AddAsync(user);
+            _logger.LogInformation("Создан новый пользователь: {EmployeeNumber} (ID: {UserId})",
+                createdUser.EmployeeNumber, createdUser.Id);
+
             return await MapToDto(createdUser);
         }
 
-        /// <summary>
-        /// Обновление данных пользователя
-        /// </summary>
         public async Task<UserDto> UpdateUserAsync(int userId, UserUpdateDto userUpdateDto, int adminId)
         {
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
                 throw new KeyNotFoundException($"Пользователь с ID {userId} не найден");
 
-            // Обновление только переданных полей
+            if (!string.IsNullOrEmpty(userUpdateDto.FullName))
+                user.FullName = userUpdateDto.FullName;
+
             if (!string.IsNullOrEmpty(userUpdateDto.Email))
                 user.Email = userUpdateDto.Email;
 
-            if (!string.IsNullOrEmpty(userUpdateDto.FirstName))
-                user.FirstName = userUpdateDto.FirstName;
-
-            if (!string.IsNullOrEmpty(userUpdateDto.LastName))
-                user.LastName = userUpdateDto.LastName;
-
             if (!string.IsNullOrEmpty(userUpdateDto.Role))
-                user.Role = Enum.Parse<UserRole>(userUpdateDto.Role);
-
-            if (userUpdateDto.PortalEmployeeId.HasValue)
-                user.PortalEmployeeId = userUpdateDto.PortalEmployeeId;
+                user.Role = userUpdateDto.Role;
 
             if (userUpdateDto.IsActive.HasValue)
                 user.IsActive = userUpdateDto.IsActive.Value;
@@ -120,34 +99,32 @@ namespace API0093BK.Services
             user.UpdatedBy = adminId;
 
             await _userRepository.UpdateAsync(user);
+            _logger.LogInformation("Обновлен пользователь: {EmployeeNumber} (ID: {UserId})",
+                user.EmployeeNumber, user.Id);
+
             return await MapToDto(user);
         }
 
-        /// <summary>
-        /// Удаление (деактивация) пользователя
-        /// </summary>
         public async Task<bool> DeleteUserAsync(int userId, int adminId)
         {
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null)
                 throw new KeyNotFoundException($"Пользователь с ID {userId} не найден");
 
-            // Запрет на удаление самого себя
             if (userId == adminId)
                 throw new InvalidOperationException("Нельзя удалить свой собственный аккаунт");
 
-            // Мягкое удаление - просто деактивируем
             user.IsActive = false;
             user.UpdatedAt = DateTime.UtcNow;
             user.UpdatedBy = adminId;
 
             await _userRepository.UpdateAsync(user);
+            _logger.LogInformation("Деактивирован пользователь: {EmployeeNumber} (ID: {UserId})",
+                user.EmployeeNumber, user.Id);
+
             return true;
         }
 
-        /// <summary>
-        /// Сброс пароля пользователя
-        /// </summary>
         public async Task<bool> ResetPasswordAsync(int userId, string newPassword, int adminId)
         {
             var user = await _userRepository.GetByIdAsync(userId);
@@ -159,7 +136,33 @@ namespace API0093BK.Services
             user.UpdatedBy = adminId;
 
             await _userRepository.UpdateAsync(user);
+            _logger.LogInformation("Сброшен пароль пользователя: {EmployeeNumber} (ID: {UserId})",
+                user.EmployeeNumber, user.Id);
+
             return true;
+        }
+
+        public async Task<IEnumerable<UserDto>> GetUsersByRoleAsync(string role)
+        {
+            var users = await _userRepository.GetUsersByRoleAsync(role);
+            var result = new List<UserDto>();
+
+            foreach (var user in users)
+            {
+                result.Add(await MapToDto(user));
+            }
+
+            return result;
+        }
+
+        public async Task UpdateLastSyncDateAsync(int userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user != null)
+            {
+                user.LastSyncDate = DateTime.UtcNow;
+                await _userRepository.UpdateAsync(user);
+            }
         }
 
         /// <summary>
@@ -171,39 +174,36 @@ namespace API0093BK.Services
             if (user == null)
                 throw new KeyNotFoundException($"Пользователь с ID {userId} не найден");
 
-            if (!user.PortalEmployeeId.HasValue)
-                throw new InvalidOperationException("Пользователь не связан с ID сотрудника из портала");
+            // Здесь будет интеграция с порталом обучения
+            // Пока просто логируем
+            _logger.LogInformation("Пользователь {EmployeeNumber} (ID: {UserId}) отправлен на обучение",
+                user.EmployeeNumber, user.Id);
 
-            // Здесь будет вызов к API портала обучения
+            // В будущем здесь будет вызов API портала
             await Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Преобразование модели User в DTO с получением имени создателя
-        /// </summary>
         private async Task<UserDto> MapToDto(User user)
         {
             string createdByName = "System";
-            if (user.CreatedBy > 0)
+            if (user.CreatedBy.HasValue && user.CreatedBy > 0)
             {
-                var creator = await _userRepository.GetByIdAsync(user.CreatedBy);
+                var creator = await _userRepository.GetByIdAsync(user.CreatedBy.Value);
                 if (creator != null)
-                    createdByName = $"{creator.FirstName} {creator.LastName}";
+                    createdByName = creator.FullName;
             }
 
             return new UserDto
             {
                 Id = user.Id,
-                Username = user.Username,
+                EmployeeNumber = user.EmployeeNumber,
+                FullName = user.FullName,
                 Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = user.Role.ToString(),
-                PortalEmployeeId = user.PortalEmployeeId,
+                Role = user.Role,
+                LastSyncDate = user.LastSyncDate,
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt,
-                CreatedBy = createdByName,
-                LastLoginAt = user.LastLoginAt
+                CreatedBy = createdByName
             };
         }
     }

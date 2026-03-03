@@ -2,9 +2,6 @@
 
 namespace API0093BK.DTOs.Auth
 {
-    /// <summary>
-    /// DTO с токеном доступа
-    /// </summary>
     public class TokenDto
     {
         public string AccessToken { get; set; } = string.Empty;

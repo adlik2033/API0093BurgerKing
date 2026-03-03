@@ -12,29 +12,30 @@ namespace API0093BK.Models
         public int Id { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        [Column(TypeName = "date")]
+        public DateTime WeekStartDate { get; set; }        // Начало недели
 
         [Required]
-        public DateTime WeekStartDate { get; set; }
+        public int UserId { get; set; }                     // ID сотрудника
 
         [Required]
-        public DateTime WeekEndDate { get; set; }
+        [Column(TypeName = "date")]
+        public DateTime WorkDate { get; set; }              // Дата работы
 
         [Required]
-        public DateTime WorkDate { get; set; }
-
-        public TimeSpan? StartTime { get; set; }
-
-        public TimeSpan? EndTime { get; set; }
+        [Column(TypeName = "time")]
+        public TimeSpan StartTime { get; set; }             // Время начала
 
         [Required]
-        public ScheduleStatus Status { get; set; } = ScheduleStatus.Draft;
+        [Column(TypeName = "time")]
+        public TimeSpan EndTime { get; set; }               // Время окончания
+
+        [Required]
+        public bool IsFinal { get; set; } = false;          // Утверждено ли
 
         public DateTime CreatedAt { get; set; }
-
         public DateTime? UpdatedAt { get; set; }
-
-        public int? ApprovedBy { get; set; }
+        public int? ApprovedBy { get; set; }                 // Кто утвердил
 
         // Навигационные свойства
         [ForeignKey("UserId")]
@@ -42,15 +43,5 @@ namespace API0093BK.Models
 
         [ForeignKey("ApprovedBy")]
         public virtual User? Approver { get; set; }
-    }
-
-    /// <summary>
-    /// Статусы расписания
-    /// </summary>
-    public enum ScheduleStatus
-    {
-        Draft = 1,    // Черновик
-        Final = 2,    // Окончательный вариант
-        Approved = 3  // Утверждено
     }
 }

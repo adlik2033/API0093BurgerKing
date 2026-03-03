@@ -2,9 +2,6 @@
 
 namespace API0093BK.DTOs.Schedule
 {
-    /// <summary>
-    /// DTO для создания/обновления расписания
-    /// </summary>
     public class ScheduleCreateDto
     {
         [Required]
@@ -16,7 +13,10 @@ namespace API0093BK.DTOs.Schedule
         [Required]
         public DateTime WorkDate { get; set; }
 
-        public TimeSpan? StartTime { get; set; }
-        public TimeSpan? EndTime { get; set; }
+        [Required]
+        public TimeSpan StartTime { get; set; }
+
+        [Required]
+        public TimeSpan EndTime { get; set; }
     }
 }

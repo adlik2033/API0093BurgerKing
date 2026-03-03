@@ -2,16 +2,14 @@
 
 namespace API0093BK.DTOs.Wish
 {
-    /// <summary>
-    /// DTO для создания пожелания
-    /// </summary>
     public class WishCreateDto
     {
-        [Required(ErrorMessage = "Дата пожелания обязательна")]
-        public DateTime WishDate { get; set; }
+        [Required(ErrorMessage = "Дата запроса обязательна")]
+        public DateTime RequestedDate { get; set; }
 
-        [Required(ErrorMessage = "Тип пожелания обязателен")]
-        public string Type { get; set; } = string.Empty;
+        public TimeSpan? StartTime { get; set; }
+
+        public TimeSpan? EndTime { get; set; }
 
         [StringLength(500, ErrorMessage = "Комментарий не может превышать 500 символов")]
         public string? Comment { get; set; }

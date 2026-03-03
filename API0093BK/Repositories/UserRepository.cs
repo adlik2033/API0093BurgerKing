@@ -5,50 +5,50 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API0093BK.Repositories
 {
-    /// <summary>
-    /// Репозиторий для работы с пользователями
-    /// </summary>
     public class UserRepository : Repository<User>, IUserRepository
     {
         public UserRepository(API0093DbContext context) : base(context)
         {
         }
 
-        /// <summary>
-        /// Получение пользователя по имени
-        /// </summary>
-        public async Task<User?> GetUserByUsernameAsync(string username)
+        public async Task<User?> GetUserByEmployeeNumberAsync(string employeeNumber)
         {
             return await _dbSet
-                .FirstOrDefaultAsync(u => u.Username == username);
+                .FirstOrDefaultAsync(u => u.EmployeeNumber == employeeNumber);
         }
 
-        /// <summary>
-        /// Получение пользователя по email
-        /// </summary>
         public async Task<User?> GetUserByEmailAsync(string email)
         {
             return await _dbSet
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        /// <summary>
-        /// Получение пользователей по роли
-        /// </summary>
-        public async Task<IEnumerable<User>> GetUsersByRoleAsync(UserRole role)
+        public async Task<IEnumerable<User>> GetUsersByRoleAsync(string role)
         {
             return await _dbSet
                 .Where(u => u.Role == role && u.IsActive)
                 .ToListAsync();
         }
 
-        /// <summary>
-        /// Получение пользователя по ID из портала
-        /// </summary>
-        public async Task<User?> GetUserByPortalIdAsync(int portalId)
+        public async Task<IEnumerable<User>> GetUsersForSyncAsync(DateTime? lastSync)
+        {
+            if (lastSync.HasValue)
+            {
+                return await _dbSet
+                    .Where(u => u.LastSyncDate == null || u.LastSyncDate < lastSync)
+                    .ToListAsync();
+            }
+            return await _dbSet
+                .Where(u => u.IsActive)
+                .ToListAsync();
+        }
+
+        public async Task<User?> GetUserWithCoursesAsync(int userId)
         {
             return await _dbSet
-                .FirstOrDefaultAsync(u => u.PortalEmployeeId == portalId);
+                .Include(u => u.EmployeeCourses)
+                    .ThenInclude(ec => ec.Course)
+                .FirstOrDefaultAsync(u => u.Id == userId);
         }
     }
 }

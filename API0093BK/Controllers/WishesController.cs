@@ -23,7 +23,7 @@ namespace API0093BK.Controllers
         }
 
         /// <summary>
-        /// Получение своих пожеланий (для сотрудника)
+        /// Получение своих пожеланий
         /// </summary>
         [HttpGet("my")]
         [ProducesResponseType(typeof(ApiResponse<IEnumerable<WishDto>>), StatusCodes.Status200OK)]
@@ -39,7 +39,7 @@ namespace API0093BK.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при получении пожеланий пользователя");
+                _logger.LogError(ex, "Ошибка при получении пожеланий");
                 return StatusCode(500, new ApiResponse<object>
                 {
                     Success = false,
@@ -54,11 +54,20 @@ namespace API0093BK.Controllers
         [HttpGet]
         [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(typeof(ApiResponse<IEnumerable<WishDto>>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetAllWishes()
+        public async Task<IActionResult> GetAllWishes([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
         {
             try
             {
-                var wishes = await _wishService.GetAllWishesAsync();
+                IEnumerable<WishDto> wishes;
+
+                if (startDate.HasValue && endDate.HasValue)
+                {
+                    wishes = await _wishService.GetWishesByDateRangeAsync(startDate.Value, endDate.Value);
+                }
+                else
+                {
+                    wishes = await _wishService.GetAllWishesAsync();
+                }
 
                 return Ok(new ApiResponse<IEnumerable<WishDto>>(wishes,
                     wishes.Any() ? "Пожелания получены" : "Пожелания не найдены"));
@@ -75,12 +84,37 @@ namespace API0093BK.Controllers
         }
 
         /// <summary>
+        /// Получение ожидающих пожеланий (для менеджера)
+        /// </summary>
+        [HttpGet("pending")]
+        [Authorize(Roles = "Administrator,Manager")]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<WishDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPendingWishes()
+        {
+            try
+            {
+                var wishes = await _wishService.GetPendingWishesAsync();
+
+                return Ok(new ApiResponse<IEnumerable<WishDto>>(wishes,
+                    wishes.Any() ? "Ожидающие пожелания получены" : "Нет ожидающих пожеланий"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении ожидающих пожеланий");
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Произошла ошибка при получении пожеланий"
+                });
+            }
+        }
+
+        /// <summary>
         /// Создание нового пожелания
         /// </summary>
         [HttpPost]
         [ProducesResponseType(typeof(ApiResponse<WishDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> CreateWish([FromBody] WishCreateDto wishDto)
         {
             try
@@ -139,7 +173,6 @@ namespace API0093BK.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> DeleteWish(int id)
         {
             try
@@ -185,24 +218,32 @@ namespace API0093BK.Controllers
         }
 
         /// <summary>
-        /// Обновление статуса пожелания (для менеджера и администратора)
+        /// Обновление статуса пожелания (для менеджера)
         /// </summary>
         [HttpPut("{id}/status")]
         [Authorize(Roles = "Administrator,Manager")]
         [ProducesResponseType(typeof(ApiResponse<WishDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateWishStatus(int id, [FromBody] string status)
+        public async Task<IActionResult> UpdateWishStatus(int id, [FromBody] UpdateWishStatusDto statusDto)
         {
             try
             {
                 var managerId = User.GetUserId();
-                var wish = await _wishService.UpdateWishStatusAsync(id, status, managerId);
+                var wish = await _wishService.UpdateWishStatusAsync(id, statusDto.Status, managerId);
 
                 return Ok(new ApiResponse<WishDto>(wish, "Статус пожелания обновлен"));
             }
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
                     Message = ex.Message
@@ -215,6 +256,31 @@ namespace API0093BK.Controllers
                 {
                     Success = false,
                     Message = "Произошла ошибка при обновлении статуса"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Проверка наличия пожелания на дату
+        /// </summary>
+        [HttpGet("check-date")]
+        [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> CheckWishForDate([FromQuery] DateTime date)
+        {
+            try
+            {
+                var userId = User.GetUserId();
+                var hasWish = await _wishService.HasWishForDateAsync(userId, date);
+
+                return Ok(new ApiResponse<bool>(hasWish, hasWish ? "Пожелание существует" : "Пожелание отсутствует"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при проверке пожелания на дату");
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Произошла ошибка при проверке"
                 });
             }
         }

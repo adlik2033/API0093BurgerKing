@@ -12,20 +12,26 @@ namespace API0093BK.Models
         public int Id { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        public int UserId { get; set; }                    // ID сотрудника
 
         [Required]
-        public DateTime WishDate { get; set; }
+        [Column(TypeName = "date")]
+        public DateTime RequestedDate { get; set; }        // Дата запроса
+
+        [Column(TypeName = "time")]
+        public TimeSpan? StartTime { get; set; }           // Желаемое время начала
+
+        [Column(TypeName = "time")]
+        public TimeSpan? EndTime { get; set; }             // Желаемое время окончания
 
         [Required]
-        public WishType Type { get; set; }
+        [StringLength(20)]
+        public string Status { get; set; } = WishStatus.Pending;    // Pending, Approved, Rejected
 
         [StringLength(500)]
-        public string? Comment { get; set; }
+        public string? Comment { get; set; }               // Комментарий
 
         [Required]
-        public WishStatus Status { get; set; } = WishStatus.Pending;
-
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
@@ -36,22 +42,14 @@ namespace API0093BK.Models
     }
 
     /// <summary>
-    /// Типы пожеланий
+    /// Константы для статусов пожеланий
     /// </summary>
-    public enum WishType
+    public static class WishStatus
     {
-        DayOff = 1,          // Выходной
-        SpecificHours = 2,   // Конкретные часы
-        PreferNotToWork = 3  // Предпочитаю не работать
-    }
+        public const string Pending = "Pending";      // Ожидает рассмотрения
+        public const string Approved = "Approved";    // Одобрено
+        public const string Rejected = "Rejected";    // Отклонено
 
-    /// <summary>
-    /// Статусы пожеланий
-    /// </summary>
-    public enum WishStatus
-    {
-        Pending = 1,  // Ожидает рассмотрения
-        Approved = 2, // Одобрено
-        Rejected = 3  // Отклонено
+        public static readonly string[] All = { Pending, Approved, Rejected };
     }
 }

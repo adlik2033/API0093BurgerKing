@@ -1,24 +1,23 @@
-using API0093BK.Data;
+п»їusing API0093BK.Data;
 using API0093BK.Helpers;
-using API0093BK.Middleware;
+using API0093BK.Models;
 using API0093BK.Repositories;
 using API0093BK.Repositories.Interfaces;
 using API0093BK.Services;
 using API0093BK.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Добавление сервисов в контейнер
+// Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Настройка Swagger
+// Swagger
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -28,10 +27,9 @@ builder.Services.AddSwaggerGen(c =>
         Description = "Burger King Employee Management System"
     });
 
-    // Настройка авторизации через JWT в Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header. Пример: 'Bearer {token}'",
+        Description = "JWT Authorization header. РџСЂРёРјРµСЂ: 'Bearer {token}'",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
@@ -55,11 +53,11 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Настройка подключения к базе данных
+// Database
 builder.Services.AddDbContext<API0093DbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Настройка JWT аутентификации
+// JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? "my-super-secret-key-that-is-at-least-32-characters-long-2024";
 
@@ -82,26 +80,30 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Регистрация вспомогательных классов
+// Helpers
 builder.Services.AddSingleton(new JwtHelper(
     secretKey,
     jwtSettings["Issuer"] ?? "API0093BK",
     jwtSettings["Audience"] ?? "API0093BKClient"
 ));
 
-// Регистрация репозиториев
+// Repositories
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IWishRepository, WishRepository>();
 builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
+builder.Services.AddScoped<ICourseRepository, CourseRepository>();
+builder.Services.AddScoped<IEmployeeCourseRepository, EmployeeCourseRepository>();
 
-// Регистрация сервисов
+// Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IWishService, WishService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<IEmployeeCourseService, EmployeeCourseService>();
 
-// Настройка CORS
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -114,7 +116,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Настройка конвейера HTTP запросов
+// Configure pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -123,38 +125,34 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
-app.UseAuthentication(); 
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Создание администратора по умолчанию при первом запуске
+// Create admin if not exists
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<API0093DbContext>();
     var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
-    // Создание базы данных, если её нет
-    context.Database.EnsureCreated();
+    context.Database.Migrate();
 
-    // Создание администратора, если его нет
-    var admin = await userRepository.GetUserByUsernameAsync("admin");
+    var admin = await userRepository.GetUserByEmployeeNumberAsync("ADMIN001");
     if (admin == null)
     {
         var adminUser = new API0093BK.Models.User
         {
-            Username = "admin",
-            PasswordHash = PasswordHelper.HashPassword("Admin123!"),
+            EmployeeNumber = "ADMIN001",
+            FullName = "System Administrator",
             Email = "admin@burgerking.ru",
-            FirstName = "System",
-            LastName = "Administrator",
-            Role = API0093BK.Models.UserRole.Administrator,
+            PasswordHash = PasswordHelper.HashPassword("Admin123!"),
+            Role = UserRoles.Administrator,
             CreatedAt = DateTime.UtcNow,
-            CreatedBy = 0,
             IsActive = true
         };
 
         await userRepository.AddAsync(adminUser);
-        Console.WriteLine("Администратор создан: admin / Admin123!");
+        Console.WriteLine("вњ… РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ СЃРѕР·РґР°РЅ: ADMIN001 / Admin123!");
     }
 }
 

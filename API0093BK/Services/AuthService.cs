@@ -7,9 +7,6 @@ using API0093BK.Services.Interfaces;
 
 namespace API0093BK.Services
 {
-    /// <summary>
-    /// Реализация сервиса аутентификации
-    /// </summary>
     public class AuthService : IAuthService
     {
         private readonly IUserRepository _userRepository;
@@ -21,33 +18,22 @@ namespace API0093BK.Services
             _jwtHelper = jwtHelper;
         }
 
-        /// <summary>
-        /// Аутентификация пользователя и получение JWT токена
-        /// </summary>
-        /// <param name="loginDto">Данные для входа</param>
-        /// <returns>Токен доступа и информация о пользователе</returns>
-        /// <exception cref="UnauthorizedAccessException">Если логин/пароль неверны или пользователь неактивен</exception>
         public async Task<TokenDto> AuthenticateAsync(LoginDto loginDto)
         {
-            var user = await _userRepository.GetUserByUsernameAsync(loginDto.Username);
+            var user = await _userRepository.GetUserByEmployeeNumberAsync(loginDto.Username);
 
-            // Проверка существования пользователя и пароля
             if (user == null || !PasswordHelper.VerifyPassword(loginDto.Password, user.PasswordHash))
             {
-                throw new UnauthorizedAccessException("Неверное имя пользователя или пароль");
+                throw new UnauthorizedAccessException("Неверный табельный номер или пароль");
             }
 
-            // Проверка активности пользователя
             if (!user.IsActive)
             {
                 throw new UnauthorizedAccessException("Ваш аккаунт деактивирован. Обратитесь к администратору.");
             }
 
-            // Обновление времени последнего входа
-            user.LastLoginAt = DateTime.UtcNow;
             await _userRepository.UpdateAsync(user);
 
-            // Генерация токена
             var token = _jwtHelper.GenerateToken(user);
 
             return new TokenDto
@@ -58,24 +44,18 @@ namespace API0093BK.Services
             };
         }
 
-        /// <summary>
-        /// Преобразование модели User в DTO
-        /// </summary>
         private UserDto MapToDto(User user)
         {
             return new UserDto
             {
                 Id = user.Id,
-                Username = user.Username,
+                EmployeeNumber = user.EmployeeNumber,
+                FullName = user.FullName,
                 Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = user.Role.ToString(),
-                PortalEmployeeId = user.PortalEmployeeId,
+                Role = user.Role,
+                LastSyncDate = user.LastSyncDate,
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt,
-                LastLoginAt = user.LastLoginAt,
-                CreatedBy = "System"
             };
         }
     }

@@ -6,9 +6,6 @@ using System.Text;
 
 namespace API0093BK.Helpers
 {
-    /// <summary>
-    /// Вспомогательный класс для работы с JWT токенами
-    /// </summary>
     public class JwtHelper
     {
         private readonly string _secretKey;
@@ -22,9 +19,6 @@ namespace API0093BK.Helpers
             _audience = audience;
         }
 
-        /// <summary>
-        /// Генерация JWT токена для пользователя
-        /// </summary>
         public string GenerateToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -33,10 +27,10 @@ namespace API0093BK.Helpers
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Name, user.EmployeeNumber),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim("fullName", $"{user.FirstName} {user.LastName}")
+                new Claim(ClaimTypes.Role, user.Role),
+                new Claim("fullName", user.FullName)
             };
 
             var tokenDescriptor = new SecurityTokenDescriptor

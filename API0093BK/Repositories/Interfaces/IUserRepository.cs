@@ -2,14 +2,12 @@
 
 namespace API0093BK.Repositories.Interfaces
 {
-    /// <summary>
-    /// Интерфейс репозитория пользователей
-    /// </summary>
     public interface IUserRepository : IRepository<User>
     {
-        Task<User?> GetUserByUsernameAsync(string username);
+        Task<User?> GetUserByEmployeeNumberAsync(string employeeNumber);
         Task<User?> GetUserByEmailAsync(string email);
-        Task<IEnumerable<User>> GetUsersByRoleAsync(UserRole role);
-        Task<User?> GetUserByPortalIdAsync(int portalId);
+        Task<IEnumerable<User>> GetUsersByRoleAsync(string role);
+        Task<IEnumerable<User>> GetUsersForSyncAsync(DateTime? lastSync);
+        Task<User?> GetUserWithCoursesAsync(int userId);
     }
 }
