@@ -89,7 +89,7 @@ namespace API0093BK.Controllers
         /// Получение всех курсов всех сотрудников (для администратора)
         /// </summary>
         [HttpGet("all")]
-        [Authorize(Roles = "Administrator")]
+        [Authorize(Roles = "Administrator, Manager")]
         [ProducesResponseType(typeof(ApiResponse<IEnumerable<EmployeeCourseDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllUserCourses()
         {
@@ -141,7 +141,7 @@ namespace API0093BK.Controllers
         /// Получение истекающих курсов
         /// </summary>
         [HttpGet("expiring")]
-        [Authorize(Roles = "Administrator,Manager")]
+        [Authorize(Roles = "Administrator, Manager")]
         [ProducesResponseType(typeof(ApiResponse<IEnumerable<EmployeeCourseDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetExpiringCourses([FromQuery] int daysThreshold = 30)
         {
@@ -261,7 +261,7 @@ namespace API0093BK.Controllers
         /// Синхронизация курсов сотрудника с порталом
         /// </summary>
         [HttpPost("sync/{userId}")]
-        [Authorize(Roles = "Administrator")]
+        [Authorize(Roles = "Administrator, Manager")]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         public async Task<IActionResult> SyncEmployeeCourses(int userId, [FromBody] IEnumerable<UpdateCourseStatusDto> externalCourses)
         {

@@ -139,7 +139,7 @@ namespace API0093BK.Controllers
         /// Создание нового курса
         /// </summary>
         [HttpPost]
-        [Authorize(Roles = "Administrator")]
+        [Authorize(Roles = "Administrator, Manager")]
         [ProducesResponseType(typeof(ApiResponse<CourseDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> CreateCourse([FromBody] CourseCreateDto courseDto)
@@ -192,7 +192,7 @@ namespace API0093BK.Controllers
         /// Обновление курса
         /// </summary>
         [HttpPut("{id}")]
-        [Authorize(Roles = "Administrator")]
+        [Authorize(Roles = "Administrator, Manager")]
         [ProducesResponseType(typeof(ApiResponse<CourseDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateCourse(int id, [FromBody] CourseCreateDto courseDto)
@@ -225,7 +225,7 @@ namespace API0093BK.Controllers
         /// Удаление курса
         /// </summary>
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Administrator")]
+        [Authorize(Roles = "Administrator, Manager")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteCourse(int id)

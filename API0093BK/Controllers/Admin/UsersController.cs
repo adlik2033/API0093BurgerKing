@@ -9,7 +9,7 @@ namespace API0093BK.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/[controller]")]
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Roles = "Administrator, Manager")]
     [Produces("application/json")]
     public class UsersController : ControllerBase
     {
