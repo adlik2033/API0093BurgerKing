@@ -1,4 +1,4 @@
-@API0093BK_HostAddress = http://localhost:5216
+@API0093BK_HostAddress = http://api0093bk.runasp.net
 
 GET {{API0093BK_HostAddress}}/weatherforecast/
 Accept: application/json

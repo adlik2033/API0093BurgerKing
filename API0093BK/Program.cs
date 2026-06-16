@@ -127,13 +127,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+app.UseSwagger();
+app.UseSwaggerUI();
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();
@@ -146,12 +141,14 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<API0093DbContext>();
     var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
+    // Применяем миграции (синхронно)
     context.Database.Migrate();
 
-    var admin = await userRepository.GetUserByEmployeeNumberAsync("ADMIN001");
+    // Асинхронный вызов делаем через GetAwaiter().GetResult()
+    var admin = userRepository.GetUserByEmployeeNumberAsync("ADMIN001").GetAwaiter().GetResult();
     if (admin == null)
     {
-        var adminUser = new API0093BK.Models.User
+        var adminUser = new User
         {
             EmployeeNumber = "ADMIN001",
             FullName = "System Administrator",
@@ -162,7 +159,7 @@ using (var scope = app.Services.CreateScope())
             IsActive = true
         };
 
-        await userRepository.AddAsync(adminUser);
+        userRepository.AddAsync(adminUser).GetAwaiter().GetResult();
         Console.WriteLine("✅ Администратор создан: ADMIN001 / Admin123!");
     }
 }
